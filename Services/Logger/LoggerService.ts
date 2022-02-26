@@ -1,5 +1,5 @@
 import "dotenv/config"
-import Discord from "discord.js";
+import Discord, { CategoryChannel } from "discord.js";
 import sqlite from "sqlite3";
 import path from "path";
 import fs from "fs";
@@ -68,43 +68,30 @@ export default class LoggerService{
         if(this.channelsCreated) {callback(true); return;}
         let guild = await this._bot.guilds.fetch(process.env.GUILD_ID as string);
         let channels = (await guild.channels.fetch()).map(channels=>channels);
-        for (const channel of channels) {
-            if(channel.type == "GUILD_CATEGORY" && channel.name == process.env.LOG_CATEGORY_NAME){
-                this.LogCategory = channel;
-                let found_channels: string[] = [];
-                for await (const child of channel.children.values()){
-                    if(child.type == "GUILD_TEXT" && this.LogChannelNames.includes(child.name)) found_channels.push(child.name);
-                }
-                if(found_channels.length != this.LogChannelNames.length){
-                    for (const channelName of this.LogChannelNames) {
-                        if(!found_channels.includes(channelName)){
-                            await this.LogCategory.createChannel(channelName);
-                            Logger.log(`Created ${channelName} channel.`, "LoggerService");
-                        }
+        if(channels.map(channel=>[channel.name]).some(row=>row.includes(process.env.LOG_CATEGORY_NAME as string))){
+            this.LogCategory = channels.filter(channel=>channel.type=="GUILD_CATEGORY"&&channel.name==(process.env.LOG_CATEGORY_NAME as string))[0] as CategoryChannel;
+            let found_channels: string[] = [];
+            for (const child of this.LogCategory.children.values())
+                if(child.type == "GUILD_TEXT" && this.LogChannelNames.includes(child.name)) found_channels.push(child.name);
+            if(found_channels.length != this.LogChannelNames.length){
+                for (const channelName of this.LogChannelNames) {
+                    if(!found_channels.includes(channelName)){
+                        await this.LogCategory.createChannel(channelName);
+                        Logger.log(`Created missing ${channelName} channel.`, "LoggerService");
                     }
                 }
-                break;
-            }else{
-                let category = await guild.channels.create(
-                    (process.env.LOG_CATEGORY_NAME as string), 
-                    {
-                        type: "GUILD_CATEGORY",
-                        permissionOverwrites:[{
-                            id: guild.roles.everyone.id,
-                            deny: [Discord.Permissions.FLAGS.VIEW_CHANNEL]
-                        }]
-                    });
-                this.LogCategory = category;
-                for (const channelName of this.LogChannelNames) {
-                    let newChannel = await category.createChannel(channelName);
-                }
-                break;
             }
+        }else{
+            this.LogCategory = await guild.channels.create((process.env.LOG_CATEGORY_NAME as string), 
+            {
+                type: "GUILD_CATEGORY",
+                permissionOverwrites:[{id: guild.roles.everyone.id, deny: [Discord.Permissions.FLAGS.VIEW_CHANNEL] }]
+            });
+            for (const channelName of this.LogChannelNames) await this.LogCategory.createChannel(channelName);
         }
-        for (const channel of this.LogCategory?.children.values()!) {
+        for (const channel of this.LogCategory?.children.values()!) 
             if(channel.type == "GUILD_TEXT" && this.LogChannelNames.includes(channel.name))
                 this.LogChannels.push(channel);
-        }
         callback(true);
     }
 

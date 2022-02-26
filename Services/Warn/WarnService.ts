@@ -20,7 +20,6 @@ export default class WarnService{
 
     //Contructor
     constructor(serviceMgr: ServiceManager){
-        moment.locale("pl");
         this._manager = serviceMgr;
         Logger.log("Trying to initialize...", "WarnService");
         this._manager.once("discordInstanceReady", (dInstance)=>{
