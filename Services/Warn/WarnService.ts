@@ -31,7 +31,7 @@ export default class WarnService{
                     return;
                 }else{
                     this.createTables();
-                    Logger.log("Discord instance provided. Checking roles...", "WarnSystem");
+                    Logger.log("Discord instance provided. Checking roles...", "WarnService");
                     this.initializeRoles(done=>{
                         if(done){
                             this._manager.on("warningAdd", async (executor, warned, reason)=>{

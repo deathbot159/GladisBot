@@ -19,6 +19,7 @@ export default class LoggerService{
     ["channel-create", "channel-delete", "channel-update", "message-delete", "message-update", "guild-ban-add", "guild-ban-remove", "warning-add", "warning-remove", "warning-update"];
     private LogChannels: Discord.TextChannel[] = [];
     public messageCreateBuffer: Discord.Message[] = [];
+    public channelsCreated: boolean = false;
 
     //Utils
     private db!:sqlite.Database;
@@ -40,6 +41,7 @@ export default class LoggerService{
                     Logger.log("Discord instance provided. Fetching channels...", "LoggerService");
                     this.initializeChannels((done=>{
                         if(done){
+                            this.channelsCreated = done;
                             Logger.log("Starting intervals.", "LoggerService");
                             this.messageAddingInterval();
                             Logger.log("Fetching event listeners...", "LoggerService");
@@ -62,57 +64,48 @@ export default class LoggerService{
         })
     }
 
-    private initializeChannels(callback: (arg0: boolean) => void){
-        this._bot.guilds.fetch((process.env.GUILD_ID as string)).then(guild=>{
-            let found = false;
-            guild.channels.fetch().then(channels=>{
-                for (const channel of channels) {
-                    if(channel[1].type == "GUILD_CATEGORY" && channel[1].name == process.env.LOG_CATEGORY_NAME){ found = true; break; }
+    private async initializeChannels(callback: (arg0: boolean) => void){
+        if(this.channelsCreated) {callback(true); return;}
+        let guild = await this._bot.guilds.fetch(process.env.GUILD_ID as string);
+        let channels = (await guild.channels.fetch()).map(channels=>channels);
+        for (const channel of channels) {
+            if(channel.type == "GUILD_CATEGORY" && channel.name == process.env.LOG_CATEGORY_NAME){
+                this.LogCategory = channel;
+                let found_channels: string[] = [];
+                for await (const child of channel.children.values()){
+                    if(child.type == "GUILD_TEXT" && this.LogChannelNames.includes(child.name)) found_channels.push(child.name);
                 }
-            }).finally(()=>{
-                if(!found){
-                    guild.channels.create((process.env.LOG_CATEGORY_NAME as string), 
-                    {type: "GUILD_CATEGORY", permissionOverwrites:[{
-                        id: guild.roles.everyone.id,
-                        deny: [Discord.Permissions.FLAGS.VIEW_CHANNEL]
-                    }]}).then(category=>{
-                        this.LogCategory = category;
-                        this.LogChannelNames.forEach(name=>{
-                            category.createChannel(name);
-                        })
-                    });
-                }else{
-                    guild.channels.fetch().then(channels=>{
-                        let found_channels: string[] = [];
-                        for (const channel of channels) {
-                            if(channel[1].type == "GUILD_CATEGORY" && channel[1].name == process.env.LOG_CATEGORY_NAME){
-                                this.LogCategory = channel[1];
-                                for (const childChannel of channel[1].children) 
-                                    if(childChannel[1].type == "GUILD_TEXT" && this.LogChannelNames.includes(childChannel[1].name)) 
-                                        found_channels.push(childChannel[1].name);
-                            }
+                if(found_channels.length != this.LogChannelNames.length){
+                    for (const channelName of this.LogChannelNames) {
+                        if(!found_channels.includes(channelName)){
+                            await this.LogCategory.createChannel(channelName);
+                            Logger.log(`Created ${channelName} channel.`, "LoggerService");
                         }
-                        if(found_channels.length != this.LogChannelNames.length){
-                            let missing: string[] = [];
-                            Logger.log("Adding missing channels to category...", "LoggerService");
-                            for (const cName of this.LogChannelNames) 
-                                if(!found_channels.includes(cName)) missing.push(cName);
-                            for (const name of missing) {
-                                this.LogCategory?.createChannel(name);
-                                Logger.log(`Created ${name} channel.`, "LoggerService");
-                            }
-                        }
-                    }).finally(()=>{
-                        this.LogCategory?.children.forEach(channel=>{
-                            if(this.LogChannelNames.includes(channel.name) && channel.type == "GUILD_TEXT")
-                                this.LogChannels.push(channel);
-                        });
-                    });
+                    }
                 }
-            });
-        }).finally(()=>{
-            callback(true);
-        })
+                break;
+            }else{
+                let category = await guild.channels.create(
+                    (process.env.LOG_CATEGORY_NAME as string), 
+                    {
+                        type: "GUILD_CATEGORY",
+                        permissionOverwrites:[{
+                            id: guild.roles.everyone.id,
+                            deny: [Discord.Permissions.FLAGS.VIEW_CHANNEL]
+                        }]
+                    });
+                this.LogCategory = category;
+                for (const channelName of this.LogChannelNames) {
+                    let newChannel = await category.createChannel(channelName);
+                }
+                break;
+            }
+        }
+        for (const channel of this.LogCategory?.children.values()!) {
+            if(channel.type == "GUILD_TEXT" && this.LogChannelNames.includes(channel.name))
+                this.LogChannels.push(channel);
+        }
+        callback(true);
     }
 
     private messageAddingInterval(){

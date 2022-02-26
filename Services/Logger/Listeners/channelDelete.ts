@@ -6,7 +6,8 @@ import LoggerService from "../LoggerService";
 export default function channelDeleteListener(service: LoggerService){
     Logger.log("Listening to channelDelete event.", "LoggerService | channelDeleteListener()");
     service.discordInstance.on("channelDelete", (channel)=>{
-        let type = "DELETE";
+        if(service.channelsCreated){
+            let type = "DELETE";
             let timestamp = new Date().getTime();
             let channelId = channel.id;
             let executorId: string | undefined;
@@ -36,5 +37,6 @@ export default function channelDeleteListener(service: LoggerService){
                     });
                 });
             }
+        }
     })
 }
