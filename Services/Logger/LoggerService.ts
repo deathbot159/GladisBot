@@ -8,7 +8,6 @@ import LoggerTables from "../../Discord/SQLs/loggerTables";
 import DiscordInstance from "../../Discord/Client";
 import ServiceManager from "../../Managers/ServiceManager";
 import Logger from "../../Utils/Logger";
-import channelCreateListener from "./Listeners/channelCreate";
 
 export default class LoggerService{
     public Name: string = "LoggerService";
