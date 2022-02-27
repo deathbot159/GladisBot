@@ -17,7 +17,7 @@ export default class DiscordInstance extends Discord.Client{
                     }
                 ]
             }, 
-            intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_MESSAGE_REACTIONS", "GUILD_BANS"]
+            intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_MESSAGE_REACTIONS", "GUILD_BANS", "GUILD_VOICE_STATES"]
             }
         );
         this._serviceManager = serviceManager;
