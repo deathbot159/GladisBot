@@ -119,7 +119,7 @@ export default function channelUpdateListener(service: LoggerService){
                                         }
                                     }
                                 }).finally(()=>{
-                                    service.database.run(`INSERT INTO channel(type, channelId, channelName, executorId, executorTag, additionalInfo, timestamp) VALUES ("${type}", ${channelId}, "${newChannel.name}", ${executorId}, "${executorTag}", '{"info":${JSON.stringify(additionalInfo)}}', ${timestamp});`, (_err:any)=>{
+                                    service.database.run(`INSERT INTO channel(type, channelId, channelName, executorId, executorTag, additionalInfo, timestamp) VALUES ("${type}", ${channelId}, "${newChannel.name}", ${executorId?executorId:"null"}, "${executorTag?executorTag:"none"}", '{"info":${JSON.stringify(additionalInfo)}}', ${timestamp});`, (_err:any)=>{
                                         if(_err) console.error(_err);
                                     });
                                 })
